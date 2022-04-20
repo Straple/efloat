@@ -4,7 +4,7 @@
 #include <sstream>
 #include <iomanip>
 
-const int EFLOAT_MAX_LEN = 300;
+const int EFLOAT_MAX_LEN = 30;
 
 class efloat {
 	// true = positive
@@ -23,6 +23,7 @@ class efloat {
 		sign = SIGN;
 		word = WORD;
 		exp = EXP;
+		relax();
 	}
 
 	int operator [](int index) const {
@@ -39,9 +40,12 @@ class efloat {
 		if (word.empty()) {
 			word = "0";
 		}
-		while (size() > EFLOAT_MAX_LEN + 10) {
+		while (size() > EFLOAT_MAX_LEN) {
 			word.erase(word.begin());
 			exp++;
+		}
+		if (word == "0") {
+			exp = 0;
 		}
 	}
 
@@ -121,6 +125,9 @@ public:
 		}
 		ld x;
 		ss >> x;
+		if (word != "0" && x == 0) { // long double overflowed
+			x = INFINITY * (sign ? +1 : -1);
+		}
 		return x;
 	}
 
@@ -168,6 +175,7 @@ public:
 * EFLOATS BASE FUNCTIONS
 */
 
+// a.exp = b.exp
 void efloats_normalize(efloat& a, efloat& b) {
 	while (a.exp > b.exp) {
 		a.word.insert(a.word.begin(), '0');
@@ -177,16 +185,9 @@ void efloats_normalize(efloat& a, efloat& b) {
 		b.word.insert(b.word.begin(), '0');
 		b.exp--;
 	}
-
-	// если a == 0 или b == 0 => будет бред (число = "000000"), который лечиться так:
-	a.relax();
-	b.relax();
-
-	if (a.exp != b.exp) {
-		std::cout << "efloats_normalize failed\n";
-	}
 }
 
+// lhs < rhs
 bool efloats_less(const efloat& lhs, const efloat& rhs) {
 	if (lhs.size() != rhs.size()) {
 		return lhs.size() < rhs.size();
@@ -269,12 +270,26 @@ efloat operator * (const efloat& a, const efloat& b) {
 		s[i] += '0';
 	}
 
-	auto ans = efloat(a.sign == b.sign, s, a.exp + b.exp);
-	ans.relax();
-	return ans;
+	return efloat(a.sign == b.sign, s, a.exp + b.exp);
 }
 
 efloat operator + (efloat a, efloat b) {
+	if (a.word == "0") {
+		return b;
+	}
+	else if (b.word == "0") {
+		return a;
+	}
+
+	if (abs(a.exp - b.exp) > 3 * EFLOAT_MAX_LEN) {
+		if (a.exp > b.exp) {
+			return a;
+		}
+		else {
+			return b;
+		}
+	}
+
 	efloats_normalize(a, b);
 
 	if (a.sign == b.sign) {
@@ -289,25 +304,38 @@ efloat operator + (efloat a, efloat b) {
 }
 
 efloat operator - (efloat a, efloat b) {
-	efloats_normalize(a, b);
-	
-	if (a.sign == b.sign) {
-		if (efloats_less(a, b)) { // a < b
-			return -efloats_base_subtraction(b, a);
+	if (a.word == "0") {
+		return -b;
+	}
+	else if(b.word == "0") {
+		return a;
+	}
+
+	if (abs(a.exp - b.exp) > 3 * EFLOAT_MAX_LEN) {
+		if (a.exp > b.exp) {
+			return a;
 		}
-		else { // a >= b
-			return efloats_base_subtraction(a, b);
+		else {
+			return -b;
 		}
 	}
-	else {
+
+	efloats_normalize(a, b);
+	
+	if (a.sign != b.sign) {
 		return efloats_base_addition(a, b);
+	}
+	else if (efloats_less(a, b)) { // a < b
+		return -efloats_base_subtraction(b, a);
+	}
+	else { // a >= b
+		return efloats_base_subtraction(a, b);
 	}
 }
 
 efloat operator / (efloat a, efloat b) {
-	efloats_normalize(a, b);
 	std::string ans;
-	int cnt_exp = 0;
+	int cnt_exp = a.exp - b.exp;
 
 	{
 		auto z = b;
@@ -318,10 +346,6 @@ efloat operator / (efloat a, efloat b) {
 	}
 
 	while (!efloats_less(a, b)) { // b <= a
-		if (ans.size() > EFLOAT_MAX_LEN) {
-			break;
-		}
-
 		auto z = b;
 		int i = 0;
 		while (!efloats_less(a, z)) { // z <= a
@@ -343,14 +367,15 @@ efloat operator / (efloat a, efloat b) {
 		cnt_exp--;
 
 		a.word.insert(a.word.begin(), '0');
-		ans.insert(ans.begin(), '0');
-		while (!efloats_less(a, b)) { // z <= a
-			a = efloats_base_subtraction(a, b);
-			ans.front()++;
+
+		if (!efloats_less(a, b) || !ans.empty()) {
+			ans.insert(ans.begin(), '0');
+			while (!efloats_less(a, b)) { // z <= a
+				a = efloats_base_subtraction(a, b);
+				ans.front()++;
+			}
 		}
 	}
 
-	efloat super_ans(a.sign == b.sign, ans, cnt_exp);
-	super_ans.relax();
-	return super_ans;
+	return efloat(a.sign == b.sign, ans, cnt_exp);
 }
