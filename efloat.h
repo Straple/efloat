@@ -62,8 +62,8 @@ public:
 	efloat() {}
 	efloat(ld n) {
 		std::stringstream ss;
-		ss << std::setprecision(20);
-		std::cout << std::setprecision(20);
+		ss << std::setprecision(25);
+		std::cout << std::setprecision(25);
 		ss << n;
 		word = ss.str();
 		if (word[0] == '-') {
@@ -337,29 +337,34 @@ efloat operator / (efloat a, efloat b) {
 	std::string ans;
 	int cnt_exp = a.exp - b.exp;
 
+	// O(N^2)
 	{
 		auto z = b;
 		while (!efloats_less(a, z)) { // z <= a
-			z.word.insert(z.word.begin(), '0');
+			z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
 			ans.push_back('0');
 		}
 	}
-
+	// O(N^3)
 	while (!efloats_less(a, b)) { // b <= a
 		auto z = b;
 		int i = 0;
+
+		// O(N^2)
 		while (!efloats_less(a, z)) { // z <= a
-			z.word.insert(z.word.begin(), '0');
+			z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
 			i++;
 		}
 		z.word.erase(z.word.begin());
 		i--;
 
+		// O(n)
 		while (!efloats_less(a, z)) { // z <= a
 			a = efloats_base_subtraction(a, z);
 			ans[i]++;
 		}
 	}
+	// O(N^2)
 	while (a.word != "0") {
 		if (ans.size() > EFLOAT_MAX_LEN) {
 			break;
@@ -370,8 +375,9 @@ efloat operator / (efloat a, efloat b) {
 
 		if (!efloats_less(a, b) || !ans.empty()) {
 			ans.insert(ans.begin(), '0');
+			// O(N)
 			while (!efloats_less(a, b)) { // z <= a
-				a = efloats_base_subtraction(a, b);
+				a = efloats_base_subtraction(a, b); // O(N)
 				ans.front()++;
 			}
 		}
