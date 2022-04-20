@@ -61,11 +61,11 @@ public:
 
 	efloat() {}
 	efloat(ld n) {
-		std::stringstream ss;
-		ss << std::setprecision(25);
-		std::cout << std::setprecision(25);
-		ss << n;
-		word = ss.str();
+		{
+			std::stringstream ss;
+			ss << std::setprecision(25) << n;
+			word = ss.str();
+		}
 		if (word[0] == '-') {
 			sign = false;
 			word.erase(word.begin());
@@ -86,7 +86,8 @@ public:
 		}
 		reverse(word.begin(), word.end());
 		relax();
-		//std::cout << "efloat(" << n << ") = " << sign << " " << word << " " << exp << " = " << cast_to_str() << "\n";
+
+		//std::cout << std::setprecision(25) << "efloat(" << n << ") = " << sign << " " << word << " " << exp << " = " << cast_to_str() << "\n";
 	}
 
 	/*
