@@ -24,3 +24,7 @@ X = [sign]word * 10^exp
 -) O(N)  
 *) O(N^2)  
 /) O(N^2)
+
+# Tests
+Средняя ошибка при выполнении операций между efloat и long double
+![error_test](https://user-images.githubusercontent.com/54230867/165156640-76bc1531-de04-49ac-b86a-a51c31004f66.png)
