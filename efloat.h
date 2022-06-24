@@ -35,7 +35,7 @@ class efloat {
 	}
 
 	const int operator [](int index) const {
-		return word[index] - '0';
+		return word[index];
 	}
 	char& operator [](int index) {
 		return word[index];
@@ -66,6 +66,7 @@ class efloat {
 	}
 
 	// word = "303.13e20"
+	// init efloat
 	void build_with_word() {
 		if (word[0] == '-') {
 			sign = false;
@@ -99,11 +100,11 @@ class efloat {
 		for (int i = 0; i < size(); i++) {
 			word[i] -= '0';
 			if (i < rhs.size()) {
-				word[i] += rhs[i];
+				word[i] += rhs[i] - '0';
 			}
 			if (word[i] > 9) {
-				word[i + 1] += word[i] / 10;
-				word[i] %= 10;
+				word[i + 1]++;
+				word[i] -= 10;
 			}
 			word[i] += '0';
 		}
@@ -120,7 +121,7 @@ class efloat {
 		for (int i = 0; i < size(); i++) {
 			word[i] -= '0';
 			if (i < rhs.size()) {
-				word[i] -= rhs[i];
+				word[i] -= rhs[i] - '0';
 			}
 			if (word[i] < 0) {
 				word[i + 1]--;
@@ -129,6 +130,20 @@ class efloat {
 			word[i] += '0';
 		}
 		rlz();
+	}
+
+	efloat mult_by(int x) const {
+		efloat res;
+		res.word.pop_back();
+		int carry = 0;
+		for (int i = 0; i < size() || carry; i++) {
+			if (i < size()) {
+				carry += (word[i] - '0') * x;
+			}
+			res.word.push_back(carry % 10 + '0');
+			carry /= 10;
+		}
+		return res;
 	}
 
 public:
@@ -258,27 +273,37 @@ std::ostream& operator << (std::ostream& output, const efloat& val) {
 
 // a.exp <=> b.exp
 void efloats_normalize(efloat& a, efloat& b) {
-	while (a.exp > b.exp) {
+	// boosted version
+	if (a.exp > b.exp) {
+		a.word.insert(a.word.begin(), a.exp - b.exp, '0');
+		a.exp = b.exp;
+	}
+	if (b.exp > a.exp) {
+		b.word.insert(b.word.begin(), b.exp - a.exp, '0');
+		b.exp = a.exp;
+	}
+	// old version
+	/*while (a.exp > b.exp) {
 		a.word.insert(a.word.begin(), '0');
 		a.exp--;
 	}
 	while (b.exp > a.exp) {
 		b.word.insert(b.word.begin(), '0');
 		b.exp--;
-	}
+	}*/
 }
 
-// lhs < rhs: -1
-// lhs > rhs: +1
+// lhs < rhs: <0
+// lhs > rhs: >0
 // lhs == rhs: 0
 int efloats_compare(const efloat& lhs, const efloat& rhs) {
 	if (lhs.size() != rhs.size()) {
-		return lhs.size() < rhs.size() ? -1 : +1;
+		return (int)lhs.size() - (int)rhs.size();
 	}
 	else {
-		for (int i = lhs.size() - 1; i >= 0; i--) {
+		for (int i = (int)lhs.size() - 1; i >= 0; i--) {
 			if (lhs[i] != rhs[i]) {
-				return lhs[i] < rhs[i] ? -1 : +1;
+				return lhs[i] - rhs[i];
 			}
 		}
 		return 0;
@@ -298,23 +323,24 @@ bool operator != (const efloat& lhs, const efloat& rhs) {
 bool operator <  (const efloat& lhs, const efloat& rhs) {
 	// different signs
 	if (lhs.sign != rhs.sign) {
-		return !lhs.sign; 
+		return !lhs.sign;
 	}
 	// more different
-	else if(lhs.exp + EFLOAT_MAX_LEN < rhs.exp) {
+	else if (lhs.exp + EFLOAT_MAX_LEN < rhs.exp) {
 		return lhs.sign;
 	}
 	else if (lhs.exp > rhs.exp + EFLOAT_MAX_LEN) {
 		return !lhs.sign;
 	}
+	// compare words
 	else {
 		efloat a = lhs, b = rhs;
 		efloats_normalize(a, b);
 		if (lhs.sign) {
-			return efloats_compare(a, b) == -1;
+			return efloats_compare(a, b) < 0;
 		}
 		else {
-			return efloats_compare(a, b) == +1;
+			return efloats_compare(a, b) > 0;
 		}
 	}
 }
@@ -332,18 +358,19 @@ bool operator >= (const efloat& lhs, const efloat& rhs) {
 * EFLOATS OPERATORS
 */
 
+// 8s
 efloat operator * (const efloat& a, const efloat& b) {
 	std::string s(a.size() + b.size() + 1, 0);
 
 	for (int i = 0; i < a.size(); i++) {
-		for (int j = 0; j < b.size(); j++) {
-			s[i + j] += a[i] * b[j];
-		}
-		for (int i = 0; i < s.size(); i++) {
-			if (s[i] > 9) {
-				s[i + 1] += s[i] / 10;
-				s[i] %= 10;
+		int carry = 0;
+		for (int j = 0; i + j < s.size(); j++) {
+			carry += s[i + j];
+			if (j < b.size()) {
+				carry += int(a[i] - '0') * (b[j] - '0');
 			}
+			s[i + j] = carry % 10;
+			carry /= 10;
 		}
 	}
 	for (int i = 0; i < s.size(); i++) {
@@ -353,6 +380,7 @@ efloat operator * (const efloat& a, const efloat& b) {
 	return efloat(a.sign == b.sign, s, a.exp + b.exp);
 }
 
+// 4s
 efloat operator + (efloat a, efloat b) {
 	if (a.word == "0") {
 		return b;
@@ -376,7 +404,7 @@ efloat operator + (efloat a, efloat b) {
 	if (a.sign == b.sign) {
 		a.base_addition(b);
 	}
-	else if (efloats_compare(a, b) == -1) { // a < b
+	else if (efloats_compare(a, b) < 0) { // a < b
 		b.base_subtraction(a);
 		std::swap(a, b);
 	}
@@ -387,11 +415,12 @@ efloat operator + (efloat a, efloat b) {
 	return a;
 }
 
+// 4s
 efloat operator - (efloat a, efloat b) {
 	if (a.word == "0") {
 		return -b;
 	}
-	else if(b.word == "0") {
+	else if (b.word == "0") {
 		return a;
 	}
 
@@ -406,13 +435,13 @@ efloat operator - (efloat a, efloat b) {
 	}
 
 	efloats_normalize(a, b);
-	
+
 	if (a.sign != b.sign) {
 		a.base_addition(b);
 	}
-	else if (efloats_compare(a, b) == -1) { // a < b
+	else if (efloats_compare(a, b) < 0) { // a < b
 		b.base_subtraction(a);
-		b = -b;
+		b.sign = !b.sign;
 		std::swap(a, b);
 	}
 	else { // a >= b
@@ -422,6 +451,73 @@ efloat operator - (efloat a, efloat b) {
 	return a;
 }
 
+// binary search modification. 63s
+/*efloat operator / (efloat a, const efloat& b) {
+	VERIFY(b.word != "0", "efloat division by zero");
+	std::string ans;
+	int cnt_exp = a.exp - b.exp;
+
+	auto z = b;
+	int i = 0;
+	// O(N^2)
+	{
+		while (efloats_compare(a, z) >= 0) { // a >= z
+			z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
+			ans.push_back('0');
+			i++;
+		}
+	}
+	// O(N^2)
+	while (efloats_compare(a, b) >= 0) { // a >= b
+
+		z.word.erase(z.word.begin()); // O(N)
+		i--;
+
+		int tl = 0, tr = 10;
+		while (tl < tr - 1) {
+			int tm = (tl + tr) / 2;
+			efloat x = z.mult_by(tm);
+			if (efloats_compare(a, z.mult_by(tm)) >= 0) {
+				tl = tm;
+			}
+			else {
+				tr = tm;
+			}
+		}
+		ans[i] += tl;
+		a.base_subtraction(z.mult_by(tl));
+	}
+	// O(N^2)
+	while (a.word != "0") {
+		if (ans.size() > EFLOAT_MAX_LEN) {
+			break;
+		}
+		cnt_exp--;
+
+		a.word.insert(a.word.begin(), '0');
+
+		if (efloats_compare(a, b) >= 0 || !ans.empty()) {
+			ans.insert(ans.begin(), '0');
+
+			int tl = 0, tr = 10;
+			while (tl < tr - 1) {
+				int tm = (tl + tr) / 2;
+				efloat x = b.mult_by(tm);
+				if (efloats_compare(a, b.mult_by(tm)) >= 0) {
+					tl = tm;
+				}
+				else {
+					tr = tm;
+				}
+			}
+			ans.front() += tl;
+			a.base_subtraction(b.mult_by(tl));
+		}
+	}
+	return efloat(a.sign == b.sign, ans, cnt_exp);
+}*/
+
+// vanila version. 40s
 efloat operator / (efloat a, const efloat& b) {
 	VERIFY(b.word != "0", "efloat division by zero");
 	std::string ans;
@@ -431,20 +527,20 @@ efloat operator / (efloat a, const efloat& b) {
 	int i = 0;
 	// O(N^2)
 	{
-		while (efloats_compare(a, z) != -1) { // a >= z
+		while (efloats_compare(a, z) >= 0) { // a >= z
 			z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
 			ans.push_back('0');
 			i++;
 		}
 	}
 	// O(N^2)
-	while (efloats_compare(a, b) != -1) { // a >= b
+	while (efloats_compare(a, b) >= 0) { // a >= b
 
 		z.word.erase(z.word.begin()); // O(N)
 		i--;
 
 		// O(N)
-		while (efloats_compare(a, z) != -1) { // a >= z
+		while (efloats_compare(a, z) >= 0) { // a >= z
 			a.base_subtraction(z);
 			ans[i]++;
 		}
@@ -458,10 +554,10 @@ efloat operator / (efloat a, const efloat& b) {
 
 		a.word.insert(a.word.begin(), '0');
 
-		if (efloats_compare(a, b) != -1 || !ans.empty()) {
+		if (efloats_compare(a, b) >= 0 || !ans.empty()) {
 			ans.insert(ans.begin(), '0');
 			// O(N)
-			while (efloats_compare(a, b) != -1) { // a >= b
+			while (efloats_compare(a, b) >= 0) { // a >= b
 				a.base_subtraction(b); // O(N)
 				ans.front()++;
 			}
