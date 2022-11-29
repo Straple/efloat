@@ -1,29 +1,32 @@
 #pragma once
 
 /*
-* Beta патч
-* Состояние патча:
-* 1) Исправлены баги со сравнением 0 и чисел типа 10e-55, так как тогда программа считала,
-* что 0 > 10e-55, так как у нуля экспонента 0, а у этого числа -55, что намного меньше
-* 2) заменены гнусные C-style cast на C++ static_cast
-* 3) 0 теперь имеет только один вид: -0 нет
-*/
+ * Beta патч
+ * Состояние патча:
+ * 1) Исправлены баги со сравнением 0 и чисел типа 10e-55, так как тогда
+ * программа считала, что 0 > 10e-55, так как у нуля экспонента 0, а у этого
+ * числа -55, что намного меньше
+ * 2) заменены гнусные C-style cast на C++ static_cast
+ * 3) 0 теперь имеет только один вид: -0 нет
+ */
 
-#include <string>
-#include <sstream>
-#include <iomanip>
-#include <limits>
 #include <algorithm>
+#include <iomanip>
 #include <iostream>
+#include <limits>
+#include <sstream>
+#include <string>
 
-const int EFLOAT_MAX_LEN = 40;
+const int EFLOAT_MAX_LEN = 30;
 const int EFLOAT_DOUBLE_LEN = 30;
 
-#define VERIFY(condition, message)\
-if(!(condition)){\
-    std::cerr << "error:" << "\nmessage: " << (message) << "\nline: " << __LINE__ << "\nfile: " << __FILE__ << std::endl;\
-    exit(EXIT_FAILURE);\
-}
+#define VERIFY(condition, message)                                        \
+    if (!(condition)) {                                                   \
+        std::cerr << "error:"                                             \
+                  << "\nmessage: " << (message) << "\nline: " << __LINE__ \
+                  << "\nfile: " << __FILE__ << std::endl;                 \
+        exit(EXIT_FAILURE);                                               \
+    }
 
 class efloat {
     // true = positive
@@ -179,10 +182,9 @@ class efloat {
     }
 
 public:
-
     /*
-    * CONSTRUCTORS
-    */
+     * CONSTRUCTORS
+     */
 
     efloat() = default;
 
@@ -201,8 +203,8 @@ public:
     }
 
     /*
-    * CAST
-    */
+     * CAST
+     */
 
     [[nodiscard]] std::string cast_to_str() const {
         std::stringstream ss;
@@ -236,7 +238,7 @@ public:
         }
         ld x;
         ss >> x;
-        if (!is_null() && x == 0) { // long double overflowed
+        if (!is_null() && x == 0) {  // long double overflowed
             x = std::numeric_limits<ld>::infinity();
             if (!sign) {
                 x = -x;
@@ -246,8 +248,8 @@ public:
     }
 
     /*
-    * ARITHMETIC OPERATIONS
-    */
+     * ARITHMETIC OPERATIONS
+     */
 
     efloat operator-() const {
         efloat result(!sign, word, exp);
@@ -272,8 +274,8 @@ public:
     }
 
     /*
-	* FRIENDS :)
-    */
+     * FRIENDS :)
+     */
 
     friend efloat operator*(const efloat &a, const efloat &b);
 
@@ -299,7 +301,7 @@ public:
 };
 
 /*
-* >>, << OPERATORS
+ * >>, << OPERATORS
  */
 
 std::istream &operator>>(std::istream &input, efloat &val) {
@@ -315,7 +317,7 @@ std::ostream &operator<<(std::ostream &output, const efloat &val) {
 }
 
 /*
-* EFLOATS BASE FUNCTIONS
+ * EFLOATS BASE FUNCTIONS
  */
 
 // a.exp <=> b.exp
@@ -359,7 +361,7 @@ void efloats_normalize(efloat &a, efloat &b) {
 }
 
 /*
-* EFLOATS COMPARE
+ * EFLOATS COMPARE
  */
 
 bool operator==(const efloat &lhs, const efloat &rhs) {
@@ -375,7 +377,7 @@ bool operator<(const efloat &lhs, const efloat &rhs) {
     if (lhs.sign != rhs.sign) {
         return !lhs.sign;
     }
-        // updating null
+    // updating null
     else if (lhs.is_null()) {
         if (rhs.is_null()) {
             return false;
@@ -385,13 +387,13 @@ bool operator<(const efloat &lhs, const efloat &rhs) {
     } else if (rhs.is_null()) {
         return !lhs.sign;
     }
-        // more different
+    // more different
     else if (lhs.exp + EFLOAT_MAX_LEN < rhs.exp) {
         return lhs.sign;
     } else if (lhs.exp > rhs.exp + EFLOAT_MAX_LEN) {
         return !lhs.sign;
     }
-        // compare words
+    // compare words
     else {
         efloat a = lhs, b = rhs;
         efloats_normalize(a, b);
@@ -416,7 +418,7 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
 }
 
 /*
-* EFLOATS OPERATORS
+ * EFLOATS OPERATORS
  */
 
 [[nodiscard]] efloat operator*(const efloat &a, const efloat &b) {
@@ -460,10 +462,10 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
 
     if (a.sign == b.sign) {
         a.base_addition(b);
-    } else if (efloats_compare(a, b) < 0) { // a < b
+    } else if (efloats_compare(a, b) < 0) {  // a < b
         b.base_subtraction(a);
         std::swap(a, b);
-    } else { // a >= b
+    } else {  // a >= b
         a.base_subtraction(b);
     }
     a.relax();
@@ -490,11 +492,11 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
 
     if (a.sign != b.sign) {
         a.base_addition(b);
-    } else if (efloats_compare(a, b) < 0) { // a < b
+    } else if (efloats_compare(a, b) < 0) {  // a < b
         b.base_subtraction(a);
         b.sign = !b.sign;
         std::swap(a, b);
-    } else { // a >= b
+    } else {  // a >= b
         a.base_subtraction(b);
     }
     a.relax();
@@ -512,9 +514,8 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
         // O(N^2)
         {
                 while (efloats_compare(a, z) >= 0) { // a >= z
-                        z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
-                        ans.push_back('0');
-                        i++;
+                        z.word.insert(z.word.begin(), '0'); // insert in begin
+O(N) ans.push_back('0'); i++;
                 }
         }
         // O(N^2)
@@ -566,9 +567,8 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
         }
         return efloat(a.sign == b.sign, ans, cnt_exp);
 }*/
+
 // vanila version. 40s
-
-
 [[nodiscard]] efloat operator/(efloat a, const efloat &b) {
     VERIFY(b.word != "0", "efloat division by zero");
     std::string ans;
@@ -579,20 +579,20 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
     int i = 0;
     // O(N^2)
     {
-        while (efloats_compare(a, z) >= 0) { // a >= z
-            z.word.insert(z.word.begin(), '0'); // insert in begin O(N)
+        while (efloats_compare(a, z) >= 0) {     // a >= z
+            z.word.insert(z.word.begin(), '0');  // insert in begin O(N)
             ans.push_back('0');
             i++;
         }
     }
     // O(N^2)
-    while (efloats_compare(a, b) >= 0) { // a >= b
+    while (efloats_compare(a, b) >= 0) {  // a >= b
 
-        z.word.erase(z.word.begin()); // O(N)
+        z.word.erase(z.word.begin());  // O(N)
         i--;
 
         // O(N)
-        while (efloats_compare(a, z) >= 0) { // a >= z
+        while (efloats_compare(a, z) >= 0) {  // a >= z
             a.base_subtraction(z);
             ans[i]++;
         }
@@ -609,8 +609,8 @@ bool operator>=(const efloat &lhs, const efloat &rhs) {
         if (efloats_compare(a, b) >= 0 || !ans.empty()) {
             ans.insert(ans.begin(), '0');
             // O(N)
-            while (efloats_compare(a, b) >= 0) { // a >= b
-                a.base_subtraction(b); // O(N)
+            while (efloats_compare(a, b) >= 0) {  // a >= b
+                a.base_subtraction(b);            // O(N)
                 ans.front()++;
             }
         }
@@ -633,8 +633,9 @@ bool equal_with_high_precision(efloat a, efloat b) {
         return true;
     }
 
-    if (diff.word.size() == 1 && (diff.exp <= a.exp + static_cast<int>(a.size()) - EFLOAT_MAX_LEN + 1 &&
-                                  diff.exp <= b.exp + static_cast<int>(b.size()) - EFLOAT_MAX_LEN + 1)) {
+    if (diff.word.size() == 1 &&
+        (diff.exp <= a.exp + static_cast<int>(a.size()) - EFLOAT_MAX_LEN + 3 &&
+         diff.exp <= b.exp + static_cast<int>(b.size()) - EFLOAT_MAX_LEN + 3)) {
         return true;
     } else {
         return false;
@@ -643,8 +644,12 @@ bool equal_with_high_precision(efloat a, efloat b) {
 
 [[nodiscard]] efloat esqrt(const efloat &n) {
     efloat x = 1;
+    int step = 0;
+    // std::cerr << step << ": " << x << std::endl;
     while (true) {
         efloat nx = (x + n / x) / 2;
+        step++;
+        // std::cerr << step << ": " << nx << std::endl;
         if (equal_with_high_precision(x, nx)) {
             break;
         }
@@ -663,4 +668,31 @@ bool equal_with_high_precision(efloat a, efloat b) {
         x = nx;
     }
     return x;
+}
+
+// TODO: need check
+[[nodiscard]] efloat eexp(const efloat &n) {
+    efloat result = 0;
+    efloat x = 1;
+    for (int dep = 0; true; dep++, x /= dep, x *= n) {
+        result += x;
+        if (x < 1e-9) {
+            break;
+        }
+    }
+    return result;
+}
+
+// TODO: don't worked
+[[nodiscard]] efloat eln(efloat n) {
+    n += 1;
+    n = 1 / n;
+
+    efloat result = 0;
+    efloat x = n;
+
+    for (int step = 1; step < 10; step++, x *= n) {
+        result += x / step * (step % 2 == 0 ? -1 : +1);
+    }
+    return result;
 }
